@@ -69,7 +69,8 @@ def main(extra_dirs):
     fails = []
     with sync_playwright() as p:
         b = p.chromium.launch(**({"executable_path": os.environ["KUNYE_BROWSER"]} if os.environ.get("KUNYE_BROWSER") else {}))
-        pg = b.new_page()
+        # every page in this run is opened with the network switched off
+        pg = b.new_context(offline=True).new_page()
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))
         pg.on("request", lambda r: None if r.url.startswith(("file:", "data:", "blob:")) else errors.append("request " + r.url))
