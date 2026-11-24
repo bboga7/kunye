@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'none'; connect-src 'none'; object-src 'none'; media-src 'none'; worker-src 'none'; frame-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>kunye: what a photo says about itself</title>
+<meta name="description" content="Reads the notes inside a photo: where it came from, whether a signed record says a model made it, and what it reveals about you. Saves a copy without the notes you choose. Runs in your browser.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="kunye: what a photo says about itself">
+<meta property="og:description" content="Read the notes inside a photo, see what they can and can't prove, and save a copy without them. Runs in your browser.">
+<meta property="og:image" content="https://beratboga.me/social-kunye.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://beratboga.me/social-kunye.jpg">
+<!--
+  kunye: reads the notes inside a JPEG or PNG file and can save a copy without them.
+  One file, no outside requests, no server, no model. Everything runs in the browser.
+  License: GPL-3.0-or-later.
+-->
+<script>(function(){var t;try{t=localStorage.getItem("theme")}catch(e){}
+if(t!=="light"&&t!=="dark"){t=window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}
+document.documentElement.setAttribute("data-theme",t)})();</script>
+<style>
+:root {
+  --ink: #1b2330; --ink-2: #3a4556; --muted: #667080; --rule: #dde1e6;
+  --paper: #ffffff; --mist: #f0f2f4; --accent: #2d5b88; --accent-deep: #234a70;
+  --accent-soft: #e8eff6; --on-accent: #ffffff;
+  --warn-ink: #8a2d2d; --warn-bg: #fbeeee; --ok-ink: #2f6b4a; --ok-bg: #e9f4ee;
+  --stage-bg: #e6eaef; --stage-grid: rgba(27, 35, 48, .055);
+  --code-bg: #1e2733; --code-ink: #e6ebf1;
+  /* Type comes from the reader's own device. No font is embedded or downloaded. */
+  --serif: ui-serif, serif;
+  --sans: system-ui, sans-serif;
+  --measure: 66ch; color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --ink: #e7eaef; --ink-2: #c2c9d3; --muted: #949dab; --rule: #2b3340;
+  --paper: #151a22; --mist: #0f1319; --accent: #8cb3dd; --accent-deep: #a9c7e9;
+  --accent-soft: #1d2939; --on-accent: #0f1319;
+  --warn-ink: #f0b4b4; --warn-bg: #3a1f22; --ok-ink: #a6dcbc; --ok-bg: #1b2f25;
+  --stage-bg: #0c1015; --stage-grid: rgba(255, 255, 255, .035);
+  --code-bg: #0a0d12; --code-ink: #dfe5ec; color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; font-family: var(--sans); font-size: 17px; line-height: 1.6; color: var(--ink);
+  background-color: var(--stage-bg);
+  background-image: linear-gradient(var(--stage-grid) 1px, transparent 1px), linear-gradient(90deg, var(--stage-grid) 1px, transparent 1px);
+  background-size: 32px 32px; background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration-color: rgba(45, 91, 136, .35); text-underline-offset: 3px; }
+a:hover { text-decoration-color: currentColor; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 400; line-height: 1.15; letter-spacing: -0.012em; margin: 0; }
+
+.top { max-width: 960px; margin: 0 auto; padding: 22px 24px 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.back { display: inline-flex; gap: 8px; font-size: 0.86rem; color: var(--ink-2); text-decoration: none; padding: 6px 15px 6px 12px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper); }
+.back::before { content: "\2190"; }
+.back:hover { color: var(--ink); border-color: var(--muted); }
+.theme-toggle { display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--rule); border-radius: 50%; background: var(--paper); color: var(--ink-2); cursor: pointer; }
+.theme-toggle svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.theme-toggle svg path:only-child { fill: currentColor; stroke: none; }
+
+main { max-width: 960px; margin: 18px auto 0; padding: 0 24px 64px; }
+.panel { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 56px 64px 64px; box-shadow: 0 1px 2px rgba(12, 22, 36, .05), 0 30px 60px -40px rgba(12, 22, 36, .35); }
+.panel h1 { font-size: clamp(2.2rem, 4.4vw, 3rem); letter-spacing: -0.02em; }
+.lead { font-family: var(--serif); font-size: 1.2rem; line-height: 1.7; color: var(--ink-2); margin: 14px 0 0; max-width: var(--measure); }
+
+.drop { display: block; margin-top: 36px; border: 1.5px dashed var(--muted); border-radius: 8px; padding: 40px 24px; text-align: center; cursor: pointer; background: var(--mist); transition: border-color .2s, background-color .2s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop strong { display: block; font-family: var(--serif); font-weight: 400; font-size: 1.45rem; color: var(--ink); }
+.drop span { display: block; color: var(--muted); font-size: 0.92rem; margin-top: 6px; }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.drop:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
+.privacy-note { font-size: 0.88rem; color: var(--muted); margin: 12px 0 0; }
+
+.result { margin-top: 44px; }
+.file-head { display: grid; grid-template-columns: 168px 1fr; gap: 24px; align-items: start; padding-bottom: 28px; border-bottom: 1px solid var(--rule); }
+.file-head img { width: 168px; height: 126px; object-fit: cover; border-radius: 4px; background: var(--mist); border: 1px solid var(--rule); }
+.file-name { font-size: 0.86rem; color: var(--muted); margin: 0 0 6px; overflow-wrap: anywhere; }
+.verdict p { font-family: var(--serif); font-size: 1.22rem; line-height: 1.55; margin: 0 0 8px; }
+.verdict p.small { font-family: var(--sans); font-size: 0.95rem; color: var(--ink-2); }
+
+.group { margin-top: 36px; }
+.group h2 { font-size: 1.5rem; }
+.group .sub { color: var(--muted); font-size: 0.94rem; margin: 6px 0 14px; max-width: var(--measure); }
+.rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.rows li { display: grid; grid-template-columns: 190px 1fr auto; gap: 8px 18px; padding: 12px 0; border-bottom: 1px solid var(--rule); align-items: baseline; }
+.rows .k { color: var(--muted); font-size: 0.9rem; }
+.rows .v { overflow-wrap: anywhere; }
+.rows .v small { display: block; color: var(--muted); font-size: 0.86rem; margin-top: 2px; }
+.rows .empty { display: block; color: var(--muted); }
+.tag { font-size: 0.76rem; padding: 2px 10px; border-radius: 20px; white-space: nowrap; background: var(--mist); color: var(--ink-2); }
+.tag.ok { background: var(--ok-bg); color: var(--ok-ink); }
+.tag.bad, .tag.you { background: var(--warn-bg); color: var(--warn-ink); }
+.tag.info { background: var(--accent-soft); color: var(--accent-deep); }
+
+.clean { margin-top: 40px; padding: 26px 28px; border: 1px solid var(--rule); border-radius: 8px; background: var(--mist); }
+.clean h2 { font-size: 1.4rem; }
+.clean p { margin: 8px 0 0; color: var(--ink-2); max-width: var(--measure); }
+.choice { display: grid; gap: 10px; margin: 18px 0; }
+.choice label { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; cursor: pointer; }
+.choice input { margin-top: 5px; accent-color: var(--accent); }
+.choice small { grid-column: 2; color: var(--muted); font-size: 0.88rem; }
+.warn { color: var(--warn-ink); background: var(--warn-bg); padding: 10px 14px; border-radius: 4px; font-size: 0.92rem; }
+.btn { font-family: var(--sans); font-size: 0.92rem; font-weight: 500; padding: 9px 18px; border-radius: 3px; border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); cursor: pointer; }
+.btn:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+.done { font-size: 0.9rem; color: var(--ink-2); margin-top: 10px; }
+
+.prose { margin-top: 56px; padding-top: 8px; border-top: 1px solid var(--rule); font-family: var(--serif); font-size: 1.14rem; line-height: 1.72; max-width: var(--measure); }
+.prose h2 { font-size: 1.5rem; margin: 1.6em 0 0.4em; }
+.prose p, .prose ul { margin: 0 0 1em; }
+.error { color: var(--warn-ink); background: var(--warn-bg); padding: 14px 16px; border-radius: 4px; }
+footer { text-align: center; color: var(--muted); font-size: 0.84rem; padding: 0 24px 40px; }
+
+@media (max-width: 760px) {
+  .top { padding: 14px 12px 0; }
+  main { padding: 0 10px 40px; margin-top: 12px; }
+  .panel { padding: 32px 20px 40px; border-radius: 8px; }
+  .file-head { grid-template-columns: 1fr; }
+  .file-head img { width: 100%; height: auto; max-height: 240px; }
+  .rows li { grid-template-columns: 1fr auto; }
+  .rows .k { grid-column: 1 / -1; }
+  .clean { padding: 20px 18px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="top">
+  <a class="back" href="index.html#/projects">beratboga.me</a>
+  <button class="theme-toggle" type="button" id="theme"></button>
+</div>
+<main>
+  <div class="panel">
+    <h1>kunye</h1>
+    <p class="lead">A photo file can carry notes that usually stay out of sight: the device, the time, sometimes the place, and in some files a signed record saying whether a model made it. Drop a JPEG or PNG here to read them, see what they may and may not show, and save a copy without them.</p>
+
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png">
+      <strong>Choose a photo or drop it here</strong>
+      <span>JPEG or PNG</span>
+    </label>
+    <p class="privacy-note">The file is read on this device. This page blocks outgoing requests, so it should keep working offline once saved.</p>
+
+    <div id="out" aria-live="polite"></div>
+
+    <div class="prose">
+      <h2>How to read the result</h2>
+      <p><strong>A missing note says little.</strong> Many images seem to carry no signed record, and notes may be removed along the way when a file is shared. When a record is missing, the file alone gives no answer about how the picture was made.</p>
+      <p><strong>A plain note is a hint.</strong> Device, software and labels in plain notes are easy to edit, so kunye shows them without treating them as proof.</p>
+      <p><strong>A signed record may say less than it seems to.</strong> When its checks pass, the file has likely not changed since it was signed, and you can see what the signer declared. Whether that declaration is true, or whether the signer deserves trust, is hard to judge from the file alone.</p>
+      <h2>What it does not do</h2>
+      <p>It doesn't look at the pixels, so when a file has no notes it can't help tell a generated image from a photograph. It doesn't compare signers with a list of trusted ones. It reads JPEG and PNG only. A clean result means only that kunye found nothing it recognizes.</p>
+      <p><a href="https://github.com/bboga7/kunye" target="_blank" rel="noopener">Source code and test files</a>, open source (GPL-3.0).</p>
+    </div>
+  </div>
+</main>
+<footer>kunye · Berat BOĞA</footer>
+
+<script>
+"use strict";
+/* =====================================================================
+   kunye engine. Reads JPEG and PNG structure directly. No dependencies.
+   ===================================================================== */
+const K = (() => {
+  const td = new TextDecoder("utf-8", { fatal: false });
+  const latin1 = new TextDecoder("latin1");
+  const u8 = (b, s, e) => b.subarray(s, e);
+  const r16 = (b, i) => (b[i] << 8) | b[i + 1];
+  const r32 = (b, i) => ((b[i] << 24) >>> 0) + (b[i + 1] << 16) + (b[i + 2] << 8) + b[i + 3];
+  const ascii = (b, s, n) => String.fromCharCode(...b.subarray(s, s + n));
+  const startsWith = (b, i, str) => { for (let k = 0; k < str.length; k++) if (b[i + k] !== str.charCodeAt(k)) return false; return true; };
+  const concat = (parts) => {
+    let n = 0; for (const p of parts) n += p.length;
+    const out = new Uint8Array(n); let o = 0;
+    for (const p of parts) { out.set(p, o); o += p.length; }
+    return out;
+  };
+  const eq = (a, b) => { if (!a || !b || a.length !== b.length) return false; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false; return true; };
+
+  /* ---------- CRC32 for PNG chunks ---------- */
+  const CRC = new Uint32Array(256).map((_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+  const crc32 = (b) => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+
+  /* ---------- File walkers ---------- */
+  function kind(b) {
+    if (b[0] === 0xff && b[1] === 0xd8) return "jpeg";
+    if (startsWith(b, 0, "\x89PNG\r\n\x1a\n")) return "png";
+    return null;
+  }
+
+  // A JPEG as a list of pieces in file order: markers, segments, picture data, trailing bytes.
+  function walkJpeg(b) {
+    const pieces = [{ t: "soi", s: 0, e: 2 }];
+    let i = 2, ended = false;
+    while (i < b.length) {
+      if (b[i] !== 0xff) { pieces.push({ t: "junk", s: i, e: b.length }); i = b.length; break; }
+      let m = b[i + 1];
+      if (m === 0xff) { i++; continue; }
+      if (m === 0xd9) { pieces.push({ t: "eoi", s: i, e: i + 2 }); i += 2; ended = true; break; }
+      if ((m >= 0xd0 && m <= 0xd7) || m === 0x01) { pieces.push({ t: "mark", m, s: i, e: i + 2 }); i += 2; continue; }
+      if (i + 4 > b.length) break;
+      const len = r16(b, i + 2);
+      const seg = { t: "seg", m, s: i, e: Math.min(b.length, i + 2 + len), ps: i + 4 };
+      pieces.push(seg);
+      i = seg.e;
+      if (m === 0xda) {
+        let j = i;
+        while (j < b.length - 1) {
+          if (b[j] === 0xff) {
+            const n = b[j + 1];
+            if (n === 0x00 || (n >= 0xd0 && n <= 0xd7)) { j += 2; continue; }
+            if (n === 0xff) { j++; continue; }
+            break;
+          }
+          j++;
+        }
+        if (j >= b.length - 1) j = b.length;
+        pieces.push({ t: "scan", s: i, e: j });
+        i = j;
+      }
+    }
+    if (ended && i < b.length) pieces.push({ t: "trail", s: i, e: b.length });
+    return pieces;
+  }
+
+  function walkPng(b) {
+    const chunks = [];
+    let i = 8;
+    while (i + 12 <= b.length) {
+      const len = r32(b, i), type = ascii(b, i + 4, 4);
+      const c = { type, s: i, ds: i + 8, de: i + 8 + len, e: i + 12 + len };
+      if (c.e > b.length) { c.e = b.length; c.de = Math.min(c.de, b.length); chunks.push(c); break; }
+      chunks.push(c);
+      i = c.e;
+      if (type === "IEND") break;
+    }
+    return { chunks, trail: i < b.length ? i : null };
+  }
+
+  /* ---------- TIFF / EXIF ---------- */
+  const TYPE_SIZE = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8, 11: 4, 12: 8 };
+  function tiff(b, base) {
+    const le = b[base] === 0x49;
+    const g16 = (o) => le ? b[base + o] | (b[base + o + 1] << 8) : r16(b, base + o);
+    const g32 = (o) => le ? (b[base + o] | (b[base + o + 1] << 8) | (b[base + o + 2] << 16)) + b[base + o + 3] * 16777216 : r32(b, base + o);
+    const len = b.length - base;
+    function ifd(off) {
+      if (!off || off + 2 > len) return null;
+      const n = g16(off), entries = [];
+      if (off + 2 + n * 12 > len) return null;
+      for (let k = 0; k < n; k++) {
+        const eo = off + 2 + k * 12;
+        const tag = g16(eo), type = g16(eo + 2), count = g32(eo + 4);
+        const size = (TYPE_SIZE[type] || 1) * count;
+        const vo = size <= 4 ? eo + 8 : g32(eo + 8);
+        if (vo + size > len) continue;
+        entries.push({ tag, type, count, size, eo, vo });
+      }
+      return { off, n, entries, next: off + 2 + n * 12 + 4 <= len ? g32(off + 2 + n * 12) : 0 };
+    }
+    function value(e) {
+      const o = base + e.vo;
+      if (e.type === 2) return latin1.decode(b.subarray(o, o + e.size)).replace(/\0+$/, "").trim();
+      if (e.type === 7 && e.size < 512) return Array.from(b.subarray(o, o + e.size));
+      const out = [];
+      for (let k = 0; k < Math.min(e.count, 64); k++) {
+        if (e.type === 3) out.push(g16(e.vo + k * 2));
+        else if (e.type === 4 || e.type === 9) out.push(g32(e.vo + k * 4));
+        else if (e.type === 5 || e.type === 10) { const d = g32(e.vo + k * 8 + 4); out.push(d ? g32(e.vo + k * 8) / d : 0); }
+        else if (e.type === 1) out.push(b[o + k]);
+      }
+      return out.length === 1 ? out[0] : out;
+    }
+    const i0 = ifd(g32(4));
+    const find = (d, tag) => d && d.entries.find((e) => e.tag === tag);
+    const sub = (tag) => { const e = find(i0, tag); return e ? ifd(g32(e.vo)) : null; };
+    const i1 = i0 && i0.next ? ifd(i0.next) : null;
+    return { le, i0, i1, exif: sub(0x8769), gps: sub(0x8825), value, find, base, g16, g32 };
+  }
+
+  const EXIF_NAMES = {
+    0x010f: "Device maker", 0x0110: "Device model", 0x0131: "Software", 0x0132: "Changed on",
+    0x013b: "Artist", 0x8298: "Copyright", 0x9003: "Taken on", 0x9004: "Digitized on",
+    0xa430: "Owner name", 0xa431: "Body serial number", 0xa433: "Lens maker", 0xa434: "Lens model",
+    0xa435: "Lens serial number", 0xa420: "Unique image ID", 0x927c: "Maker note", 0xc62f: "Camera serial number",
+    0x9c9d: "Author"
+  };
+  const PERSONAL_TAGS = [0x010f, 0x0110, 0x013b, 0x8298, 0xa430, 0xa431, 0xa433, 0xa434, 0xa435, 0xa420, 0x927c, 0xc62f, 0x9c9d];
+
+  function readExif(b, base) {
+    const out = { notes: [], place: null, preview: 0 };
+    let t;
+    try { t = tiff(b, base); } catch (e) { return out; }
+    if (!t.i0) return out;
+    for (const d of [t.i0, t.exif]) {
+      if (!d) continue;
+      for (const e of d.entries) {
+        const name = EXIF_NAMES[e.tag];
+        if (!name) continue;
+        let v = t.value(e);
+        if (e.tag === 0x927c) v = `${e.size} bytes in the device maker's own format`;
+        else if (e.tag === 0x9c9d && Array.isArray(v)) v = new TextDecoder("utf-16le").decode(new Uint8Array(v)).replace(/\0+$/, "");
+        if (v === "" || v == null) continue;
+        out.notes.push({ tag: e.tag, name, value: String(v), personal: PERSONAL_TAGS.includes(e.tag) });
+      }
+    }
+    if (t.i1) {
+      const len = t.find(t.i1, 0x0202);
+      if (len) out.preview = t.value(len) || 0;
+    }
+    if (t.gps && t.gps.entries.length) {
+      const get = (tag) => { const e = t.find(t.gps, tag); return e ? t.value(e) : null; };
+      const dms = (v) => Array.isArray(v) ? v[0] + (v[1] || 0) / 60 + (v[2] || 0) / 3600 : null;
+      let lat = dms(get(2)), lon = dms(get(4));
+      if (lat != null && lon != null && (lat || lon)) {
+        if (String(get(1)).startsWith("S")) lat = -lat;
+        if (String(get(3)).startsWith("W")) lon = -lon;
+        out.place = { lat, lon, alt: typeof get(6) === "number" ? get(6) : null };
+      } else {
+        out.placeOther = t.gps.entries.length;
+      }
+    }
+    return out;
+  }
+
+  // Blanks personal notes in place: the location block is emptied, names, device and serials are zeroed.
+  function scrubExif(b, base) {
+    let t;
+    try { t = tiff(b, base); } catch (e) { return; }
+    if (!t.i0) return;
+    const zero = (s, n) => b.fill(0, base + s, base + s + n);
+    if (t.gps) {
+      for (const e of t.gps.entries) { if (e.size > 4) zero(e.vo, e.size); }
+      zero(t.gps.off, 2 + t.gps.n * 12);
+    }
+    for (const d of [t.i0, t.exif]) {
+      if (!d) continue;
+      for (const e of d.entries) if (PERSONAL_TAGS.includes(e.tag)) zero(e.vo, e.size);
+    }
+    // The small preview may show the picture as it was before a crop or an edit, so it is blanked too.
+    if (t.i1) {
+      const off = t.find(t.i1, 0x0201), len = t.find(t.i1, 0x0202);
+      if (off && len) {
+        const o = t.value(off), n = t.value(len);
+        if (typeof o === "number" && typeof n === "number" && t.base + o + n <= b.length) zero(o, n);
+        zero(len.vo, len.size);
+      }
+    }
+  }
+
+  /* ---------- Embedded text block (XMP) ---------- */
+  const XMP_PERSONAL = /^(GPS\w*|Make|Model|Lens|LensModel|LensMake|\w*SerialNumber|OwnerName|CameraOwnerName|City|Country|CountryCode|State|Location|Sublocation|LocationCreated|LocationShown|ImageUniqueID|creator|Artist)$/;
+  function xmpFields(s) {
+    const out = [];
+    const re1 = /\b([A-Za-z][\w-]*):([A-Za-z][\w]*)\s*=\s*"([^"]*)"/g;
+    let m;
+    while ((m = re1.exec(s))) if (m[1] !== "xmlns" && m[1] !== "rdf" && m[1] !== "x") out.push({ ns: m[1], name: m[2], value: m[3] });
+    const re2 = /<([A-Za-z][\w-]*):([A-Za-z]\w*)(?:\s[^>]*)?>([\s\S]*?)<\/\1:\2>/g;
+    while ((m = re2.exec(s))) {
+      if (m[1] === "rdf" || m[1] === "x") continue;
+      const v = m[3].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      if (v) out.push({ ns: m[1], name: m[2], value: v });
+    }
+    return out;
+  }
+  function scrubXmp(s) {
+    s = s.replace(/\b([A-Za-z][\w-]*):([A-Za-z]\w*)(\s*=\s*)"[^"]*"/g, (all, ns, name, eqs) => XMP_PERSONAL.test(name) && ns !== "xmlns" ? `${ns}:${name}${eqs}""` : all);
+    s = s.replace(/<([A-Za-z][\w-]*):([A-Za-z]\w*)((?:\s[^>]*)?)>([\s\S]*?)<\/\1:\2>/g, (all, ns, name, attrs) => XMP_PERSONAL.test(name) ? `<${ns}:${name}${attrs}></${ns}:${name}>` : all);
+    return s;
+  }
+
+  /* ---------- Older info block (IIM inside APP13) ---------- */
+  const IIM = { 80: ["Author", true], 90: ["City", true], 92: ["Sub-location", true], 95: ["Province or state", true], 101: ["Country", true], 110: ["Credit", false], 115: ["Source", false], 116: ["Copyright", true], 120: ["Caption", false] };
+  function readIim(b, s, e) {
+    const out = [];
+    let i = s;
+    while (i + 12 < e && startsWith(b, i, "8BIM")) {
+      const id = r16(b, i + 4);
+      let n = b[i + 6]; let j = i + 7 + n; if ((n + 1) % 2) j++;
+      const size = r32(b, j); const ds = j + 4;
+      if (id === 0x0404) {
+        let k = ds;
+        while (k + 5 <= ds + size && b[k] === 0x1c) {
+          const rec = b[k + 1], set = b[k + 2], len = r16(b, k + 3);
+          if (rec === 2 && IIM[set]) out.push({ name: IIM[set][0], personal: IIM[set][1], value: td.decode(u8(b, k + 5, k + 5 + len)) });
+          k += 5 + len;
+        }
+      }
+      i = ds + size + (size % 2);
+    }
+    return out;
+  }
+
+  /* ---------- CBOR (decoder, enough for signed records) ---------- */
+  function cbor(b) {
+    let i = 0;
+    const len = (ai) => {
+      if (ai < 24) return ai;
+      if (ai === 24) return b[i++];
+      if (ai === 25) { const v = r16(b, i); i += 2; return v; }
+      if (ai === 26) { const v = r32(b, i); i += 4; return v; }
+      if (ai === 27) { const v = r32(b, i) * 4294967296 + r32(b, i + 4); i += 8; return v; }
+      if (ai === 31) return -1;
+      throw new Error("cbor length");
+    };
+    function item() {
+      const ib = b[i++], mt = ib >> 5, ai = ib & 31;
+      if (mt === 7) {
+        if (ai === 20) return false; if (ai === 21) return true; if (ai === 22 || ai === 23) return null;
+        const dv = new DataView(b.buffer, b.byteOffset + i);
+        if (ai === 25) { i += 2; const h = dv.getUint16(0), e = (h >> 10) & 31, f = h & 1023; const v = e === 0 ? f * 2 ** -24 : e === 31 ? (f ? NaN : Infinity) : (1 + f / 1024) * 2 ** (e - 15); return h & 0x8000 ? -v : v; }
+        if (ai === 26) { i += 4; return dv.getFloat32(0); }
+        if (ai === 27) { i += 8; return dv.getFloat64(0); }
+        return undefined;
+      }
+      const n = len(ai);
+      if (mt === 0) return n;
+      if (mt === 1) return -1 - n;
+      if (mt === 2 || mt === 3) {
+        let bytes;
+        if (n < 0) { const parts = []; while (b[i] !== 0xff) parts.push(item()); i++; bytes = mt === 2 ? concat(parts) : parts.join(""); return bytes; }
+        bytes = b.subarray(i, i + n); i += n;
+        return mt === 2 ? bytes : td.decode(bytes);
+      }
+      if (mt === 4) { const a = []; if (n < 0) { while (b[i] !== 0xff) a.push(item()); i++; } else for (let k = 0; k < n; k++) a.push(item()); return a; }
+      if (mt === 5) {
+        const o = {};
+        const one = () => { const k = item(); o[typeof k === "object" ? JSON.stringify(k) : k] = item(); };
+        if (n < 0) { while (b[i] !== 0xff) one(); i++; } else for (let k = 0; k < n; k++) one();
+        return o;
+      }
+      if (mt === 6) return { tag: n, value: item() };
+    }
+    return item();
+  }
+  function cborBytesHead(major, n) {
+    if (n < 24) return [(major << 5) | n];
+    if (n < 256) return [(major << 5) | 24, n];
+    if (n < 65536) return [(major << 5) | 25, n >> 8, n & 255];
+    return [(major << 5) | 26, (n >>> 24) & 255, (n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  const cborBstr = (bytes) => concat([new Uint8Array(cborBytesHead(2, bytes.length)), bytes]);
+
+  /* ---------- DER, enough to read a certificate ---------- */
+  function der(b, i = 0) {
+    const tag = b[i]; let len = b[i + 1], h = 2;
+    if (len & 0x80) { const n = len & 0x7f; len = 0; for (let k = 0; k < n; k++) len = len * 256 + b[i + 2 + k]; h = 2 + n; }
+    return { tag, s: i, cs: i + h, e: i + h + len };
+  }
+  function derKids(b, node) { const out = []; let i = node.cs; while (i < node.e) { const k = der(b, i); out.push(k); i = k.e; } return out; }
+  const oid = (b, n) => {
+    const v = b.subarray(n.cs, n.e); const out = [Math.floor(v[0] / 40), v[0] % 40]; let x = 0;
+    for (let k = 1; k < v.length; k++) { x = x * 128 + (v[k] & 127); if (!(v[k] & 128)) { out.push(x); x = 0; } }
+    return out.join(".");
+  };
+  function readCert(b) {
+    const cert = der(b, 0), tbs = derKids(b, cert)[0];
+    let k = derKids(b, tbs); if (k[0].tag === 0xa0) k = k.slice(1);
+    const name = (n) => {
+      const o = {};
+      for (const set of derKids(b, n)) for (const atv of derKids(b, set)) {
+        const [t, v] = derKids(b, atv); o[oid(b, t)] = td.decode(b.subarray(v.cs, v.e));
+      }
+      return o;
+    };
+    const subject = name(k[4]), issuer = name(k[2]);
+    const spkiNode = k[5];
+    const algNode = derKids(b, derKids(b, spkiNode)[0]);
+    return {
+      subject: { cn: subject["2.5.4.3"], o: subject["2.5.4.10"], c: subject["2.5.4.6"] },
+      issuer: { cn: issuer["2.5.4.3"], o: issuer["2.5.4.10"] },
+      spki: b.slice(spkiNode.s, spkiNode.e),
+      keyAlg: oid(b, algNode[0]),
+      curve: algNode[1] && algNode[1].tag === 6 ? oid(b, algNode[1]) : null,
+      selfIssued: JSON.stringify(subject) === JSON.stringify(issuer)
+    };
+  }
+
+  /* ---------- Box tree for the signed record ---------- */
+  function boxes(b, s, e) {
+    const out = [];
+    let i = s;
+    while (i + 8 <= e) {
+      let len = r32(b, i), h = 8;
+      const type = ascii(b, i + 4, 4);
+      if (len === 1) { len = r32(b, i + 8) * 4294967296 + r32(b, i + 12); h = 16; }
+      if (len === 0) len = e - i;
+      if (len < h || i + len > e) break;
+      const box = { type, s: i, bs: i + h, e: i + len };
+      if (type === "jumb") {
+        box.kids = boxes(b, box.bs, box.e);
+        const d = box.kids[0];
+        if (d && d.type === "jumd") {
+          box.uuid = ascii(b, d.bs, 4);
+          const lab = b.subarray(d.bs + 17, d.e);
+          const z = lab.indexOf(0);
+          box.label = td.decode(z >= 0 ? lab.subarray(0, z) : lab);
+        }
+      }
+      out.push(box);
+      i += len;
+    }
+    return out;
+  }
+
+  const HASH = { sha256: "SHA-256", sha384: "SHA-384", sha512: "SHA-512" };
+  async function digest(alg, data) { return new Uint8Array(await crypto.subtle.digest(HASH[alg] || "SHA-256", data)); }
+
+  const SOURCES = {
+    digitalCapture: ["Captured by a device such as a camera", "camera"],
+    negativeFilm: ["Scanned from film", "camera"], positiveFilm: ["Scanned from film", "camera"], print: ["Scanned from a print", "camera"],
+    minorHumanEdits: ["Captured, with small edits by a person", "camera"],
+    humanEdits: ["Edited by a person", "edit"],
+    compositeCapture: ["Combined from several captures", "edit"],
+    algorithmicallyEnhanced: ["Enhanced by software", "edit"],
+    trainedAlgorithmicMedia: ["Made by a model", "model"],
+    compositeWithTrainedAlgorithmicMedia: ["Combined with content made by a model", "model-edit"],
+    algorithmicMedia: ["Made by software without a trained model", "software"],
+    compositeSynthetic: ["Combined with synthetic content", "model-edit"],
+    digitalArt: ["Drawn or painted digitally by a person", "art"],
+    dataDrivenMedia: ["Produced from data", "software"],
+    virtualRecording: ["Recorded inside software", "software"],
+    screenCapture: ["A screen capture", "software"],
+    composite: ["Combined from several sources", "edit"]
+  };
+  const sourceInfo = (uri) => {
+    const key = String(uri || "").split("/").pop();
+    return SOURCES[key] ? { text: SOURCES[key][0], kind: SOURCES[key][1], key } : { text: key || "not stated", kind: "other", key };
+  };
+  const ACTIONS = {
+    "c2pa.created": "created", "c2pa.opened": "opened", "c2pa.edited": "edited", "c2pa.placed": "placed into",
+    "c2pa.cropped": "cropped", "c2pa.resized": "resized", "c2pa.color_adjustments": "colors adjusted", "c2pa.filtered": "filtered",
+    "c2pa.converted": "converted", "c2pa.drawing": "drawn on", "c2pa.removed": "something removed", "c2pa.published": "published",
+    "c2pa.transcoded": "re-encoded", "c2pa.repackaged": "repackaged", "c2pa.redacted": "redacted", "c2pa.watermarked": "watermarked"
+  };
+
+  const COSE = {
+    "-7": { name: "ECDSA", hash: "SHA-256" }, "-35": { name: "ECDSA", hash: "SHA-384" }, "-36": { name: "ECDSA", hash: "SHA-512" },
+    "-37": { name: "RSA-PSS", hash: "SHA-256", salt: 32 }, "-38": { name: "RSA-PSS", hash: "SHA-384", salt: 48 }, "-39": { name: "RSA-PSS", hash: "SHA-512", salt: 64 },
+    "-8": { name: "Ed25519" }
+  };
+  const CURVES = { "1.2.840.10045.3.1.7": "P-256", "1.3.132.0.34": "P-384", "1.3.132.0.35": "P-521" };
+
+  async function verifySignature(sigCbor, claimBytes) {
+    const res = { status: "unknown", why: "" , signer: null };
+    const s = sigCbor && sigCbor.tag === 18 ? sigCbor.value : sigCbor;
+    if (!Array.isArray(s) || s.length < 4) { res.why = "The signature block could not be read."; return res; }
+    const [prot, unprot, , signature] = s;
+    const ph = prot && prot.length ? cbor(prot) : {};
+    const chain = ph[33] || (unprot && (unprot[33] || unprot.x5chain));
+    const alg = COSE[String(ph[1])];
+    const first = Array.isArray(chain) ? chain[0] : chain;
+    if (!first) { res.why = "The record carries no certificate to check against."; return res; }
+    let cert;
+    try { cert = readCert(first); res.signer = cert; } catch (e) { res.why = "The certificate could not be read."; return res; }
+    if (!alg) { res.why = "The signature uses a method this page doesn't support."; return res; }
+    const tbs = concat([new Uint8Array([0x84, 0x6a]), new TextEncoder().encode("Signature1"), cborBstr(prot), new Uint8Array([0x40]), cborBstr(claimBytes)]);
+    try {
+      let key, params;
+      if (alg.name === "ECDSA") {
+        const curve = CURVES[cert.curve];
+        key = await crypto.subtle.importKey("spki", cert.spki, { name: "ECDSA", namedCurve: curve }, false, ["verify"]);
+        params = { name: "ECDSA", hash: alg.hash };
+      } else if (alg.name === "RSA-PSS") {
+        key = await crypto.subtle.importKey("spki", cert.spki, { name: "RSA-PSS", hash: alg.hash }, false, ["verify"]);
+        params = { name: "RSA-PSS", saltLength: alg.salt };
+      } else {
+        key = await crypto.subtle.importKey("spki", cert.spki, { name: "Ed25519" }, false, ["verify"]);
+        params = { name: "Ed25519" };
+      }
+      const ok = await crypto.subtle.verify(params, key, signature, tbs);
+      res.status = ok ? "ok" : "bad";
+      if (!ok) res.why = "The signature doesn't seem to match the record.";
+    } catch (e) {
+      res.why = "This browser could not check this kind of signature.";
+    }
+    return res;
+  }
+
+  async function readRecord(file, jb, jbOffsetMap) {
+    const top = boxes(jb, 0, jb.length).find((x) => x.type === "jumb" && x.label === "c2pa");
+    if (!top) return null;
+    const manifests = top.kids.filter((x) => x.type === "jumb");
+    if (!manifests.length) return { error: "The record is empty." };
+    const active = manifests[manifests.length - 1];
+    const rec = { label: active.label, earlier: manifests.length - 1, checks: [], actions: [], sources: [], notes: [] };
+    const part = (lab) => active.kids.find((x) => x.label && (x.label === lab || x.label.startsWith(lab + ".") || x.label.startsWith(lab + "__")));
+    const assertionStore = part("c2pa.assertions");
+    const claimBox = active.kids.find((x) => x.label && /^c2pa\.claim(\.v\d+)?$/.test(x.label));
+    const sigBox = part("c2pa.signature");
+    const content = (box) => box.kids.find((x) => x.type !== "jumd");
+    if (!claimBox || !sigBox) return { error: "The record is incomplete: its claim or signature is missing." };
+    const claimC = content(claimBox);
+    const claimBytes = jb.subarray(claimC.bs, claimC.e);
+    let claim;
+    try { claim = cbor(claimBytes); } catch (e) { return { error: "The record's claim could not be read." }; }
+    rec.version = claimBox.label.endsWith(".v2") ? 2 : 1;
+    const gen = claim.claim_generator_info;
+    rec.generator = Array.isArray(gen) ? gen.map((g) => g.name).filter(Boolean).join(", ") : gen && gen.name ? gen.name : claim.claim_generator || "";
+    rec.title = claim["dc:title"] || "";
+    const claimAlg = claim.alg || "sha256";
+    const refs = [].concat(claim.assertions || [], claim.created_assertions || [], claim.gathered_assertions || []);
+
+    // Assertions
+    const assertions = assertionStore ? assertionStore.kids.filter((x) => x.type === "jumb") : [];
+    let partsOk = true, partsChecked = 0;
+    for (const a of assertions) {
+      const ref = refs.find((r) => String(r.url || "").split("/").pop() === a.label);
+      if (ref && ref.hash) {
+        const h = await digest(ref.alg || claimAlg, jb.subarray(a.bs, a.e));
+        partsChecked++;
+        if (!eq(h, ref.hash)) partsOk = false;
+      }
+      const c = content(a);
+      if (!c || c.type !== "cbor") continue;
+      let data; try { data = cbor(jb.subarray(c.bs, c.e)); } catch (e) { continue; }
+      if (/^c2pa\.actions/.test(a.label) && data && Array.isArray(data.actions)) {
+        for (const act of data.actions) {
+          rec.actions.push({ action: ACTIONS[act.action] || String(act.action || "").replace(/^c2pa\./, ""), source: act.digitalSourceType ? sourceInfo(act.digitalSourceType) : null, agent: act.softwareAgent && (act.softwareAgent.name || act.softwareAgent) });
+          if (act.digitalSourceType) rec.sources.push(sourceInfo(act.digitalSourceType));
+        }
+      }
+      if (/^c2pa\.hash\.data/.test(a.label) && data) rec.hardBinding = data;
+      if (/^c2pa\.hash\.(bmff|boxes|collection)/.test(a.label)) rec.otherBinding = a.label;
+    }
+    rec.checks.push({ name: "Parts of the record", status: partsChecked === 0 ? "unknown" : partsOk ? "ok" : "bad", why: partsChecked === 0 ? "No parts to compare." : partsOk ? `The ${partsChecked} parts seem to match what the record lists.` : "At least one part of the record seems to have changed after signing." });
+
+    // Does the file still match the record?
+    if (rec.hardBinding && Array.isArray(rec.hardBinding.exclusions)) {
+      const ex = rec.hardBinding.exclusions.map((x) => ({ s: x.start, e: x.start + x.length })).sort((a, b) => a.s - b.s);
+      const pieces = []; let pos = 0;
+      for (const x of ex) { pieces.push(file.subarray(pos, x.s)); pos = x.e; }
+      pieces.push(file.subarray(pos));
+      const h = await digest(rec.hardBinding.alg || claimAlg, concat(pieces));
+      const ok = eq(h, rec.hardBinding.hash);
+      rec.checks.push({ name: "The file matches the record", status: ok ? "ok" : "bad", why: ok ? "The bytes outside the record seem unchanged since signing." : "Some bytes of the file seem to have changed after signing, in the picture or in its notes." });
+    } else {
+      rec.checks.push({ name: "The file matches the record", status: "unknown", why: rec.otherBinding ? "The record ties itself to the file in a way this page doesn't check yet." : "The record doesn't say how to compare it with the file." });
+    }
+
+    // Signature
+    const sigC = content(sigBox);
+    let sig = null;
+    try { sig = cbor(jb.subarray(sigC.bs, sigC.e)); } catch (e) {}
+    const v = await verifySignature(sig, claimBytes);
+    rec.signer = v.signer;
+    rec.checks.push({ name: "Signature", status: v.status, why: v.status === "ok" ? "The signature seems valid for the record and the certificate inside it." : v.why });
+    rec.valid = rec.checks.every((c) => c.status === "ok");
+    rec.broken = rec.checks.some((c) => c.status === "bad");
+    return rec;
+  }
+
+  /* ---------- Analyse ---------- */
+  async function analyze(file) {
+    const r = { format: kind(file), plain: [], personal: [], place: null, labels: [], unknown: [], record: null, extra: [], size: file.length };
+    if (!r.format) { r.error = "This doesn't look like a JPEG or PNG file."; return r; }
+    const addXmp = (s, where) => {
+      for (const f of xmpFields(s)) {
+        if (!String(f.value).trim()) continue;
+        if (f.name === "DigitalSourceType") r.labels.push({ where, source: sourceInfo(f.value) });
+        else if (XMP_PERSONAL.test(f.name)) r.personal.push({ name: prettify(f.name), value: f.value, from: "text block" });
+        else if (/^(CreatorTool|Software|HistorySoftwareAgent)$/.test(f.name)) r.plain.push({ name: "Made or edited with", value: f.value, from: "text block" });
+        else if (f.name === "provenance") r.extra.push("A text note points to a signed record stored somewhere else. This page doesn't fetch it.");
+      }
+    };
+    const addExif = (b, base) => {
+      const e = readExif(b, base);
+      for (const n of e.notes) (n.personal ? r.personal : r.plain).push({ name: n.name, value: n.value, from: "device notes" });
+      if (e.place) r.place = e.place;
+      if (e.preview > 0) r.extra.push(`A small preview picture (${e.preview} bytes) is stored inside the device notes. It may show the picture as it was before a crop or an edit.`);
+      else if (e.placeOther) r.personal.push({ name: "Location block", value: `${e.placeOther} entries without usable coordinates`, from: "device notes" });
+    };
+    let jumbf = null;
+    if (r.format === "jpeg") {
+      const p = walkJpeg(file);
+      r.pieces = p;
+      const app11 = {};
+      for (const s of p) {
+        if (s.t === "trail" && s.e - s.s > 16) r.extra.push(`${s.e - s.s} bytes are stored after the end of the picture, possibly extra previews or brightness maps. They may carry notes of their own.`);
+        if (s.t !== "seg") continue;
+        const { m, ps, e } = s;
+        if (m === 0xe1 && startsWith(file, ps, "Exif\0")) addExif(file, ps + 6);
+        else if (m === 0xe1 && xmpStart(file, ps, e) >= 0) addXmp(td.decode(u8(file, xmpStart(file, ps, e), e)), "text block");
+        else if (m === 0xe1 && startsWith(file, ps, "http://ns.adobe.com/xmp/extension/\0")) addXmp(td.decode(u8(file, ps + 75, e)), "text block");
+        else if (m === 0xed && startsWith(file, ps, "Photoshop 3.0\0")) for (const f of readIim(file, ps + 14, e)) (f.personal ? r.personal : r.plain).push({ name: f.name, value: f.value, from: "info block" });
+        else if (m === 0xeb && startsWith(file, ps, "JP")) {
+          const en = r16(file, ps + 2), z = r32(file, ps + 4);
+          (app11[en] = app11[en] || []).push({ z, s: ps + 8, e });
+        } else if (m === 0xfe) r.plain.push({ name: "Comment", value: latin1.decode(u8(file, ps, e)).slice(0, 400), from: "comment" });
+        else if (m === 0xe2 && startsWith(file, ps, "MPF\0")) r.extra.push("The file holds more than one picture (a multi-picture index).");
+        else if (m >= 0xe3 && m <= 0xef && m !== 0xee && m !== 0xeb && m !== 0xed) r.unknown.push(`A block of type APP${m - 0xe0} (${e - ps} bytes)`);
+      }
+      for (const en of Object.keys(app11)) {
+        const segs = app11[en].sort((a, b) => a.z - b.z);
+        const parts = segs.map((g, k) => {
+          if (k === 0) return file.subarray(g.s, g.e);
+          const hl = r32(file, segs[0].s) === 1 ? 16 : 8;
+          return file.subarray(g.s + hl, g.e);
+        });
+        const jb = concat(parts);
+        const top = boxes(jb, 0, jb.length);
+        if (top.some((x) => x.label === "c2pa")) { jumbf = jb; break; }
+      }
+    } else {
+      const { chunks, trail } = walkPng(file);
+      r.chunks = chunks;
+      for (const c of chunks) {
+        const d = file.subarray(c.ds, c.de);
+        if (c.type === "eXIf") addExif(file, c.ds);
+        else if (c.type === "caBX") jumbf = d;
+        else if (c.type === "tEXt" || c.type === "zTXt" || c.type === "iTXt") {
+          const t = await pngText(c.type, d);
+          if (!t) { r.unknown.push(`A compressed text note (${c.type}) that could not be opened`); continue; }
+          if (t.key === "XML:com.adobe.xmp") addXmp(t.text, "text block");
+          else if (/^Raw profile type (exif|APP1)$/i.test(t.key)) r.extra.push("A device-notes block is stored inside a text note in an unusual way. kunye doesn't read it, but it may hold place and device data.");
+          else if (/author|owner|artist|creator|copyright|gps|location|serial/i.test(t.key)) r.personal.push({ name: t.key, value: t.text.slice(0, 400), from: "text note" });
+          else r.plain.push({ name: `Text note "${t.key}"`, value: t.text.length > 400 ? t.text.slice(0, 400) + " [...]" : t.text, from: "text note" });
+        } else if (c.type === "tIME") r.plain.push({ name: "Changed on", value: `${r16(d, 0)}-${d[2]}-${d[3]} ${d[4]}:${d[5]}`, from: "time note" });
+        else if (!/^(IHDR|PLTE|IDAT|IEND|tRNS|cHRM|gAMA|iCCP|sBIT|sRGB|bKGD|hIST|pHYs|sPLT|acTL|fcTL|fdAT|cICP|mDCv|cLLi)$/.test(c.type)) r.unknown.push(`A block named ${c.type} (${c.de - c.ds} bytes)`);
+      }
+      if (trail) r.extra.push(`${file.length - trail} bytes are stored after the end of the picture.`);
+    }
+    if (jumbf) {
+      try { r.record = await readRecord(file, jumbf); } catch (e) { r.record = { error: "The record could not be read." }; }
+    }
+    return r;
+  }
+
+  async function inflate(data) {
+    try {
+      const ds = new DecompressionStream("deflate");
+      const out = new Response(new Blob([data]).stream().pipeThrough(ds));
+      return new Uint8Array(await out.arrayBuffer());
+    } catch (e) { return null; }
+  }
+  async function pngText(type, d) {
+    const z = d.indexOf(0);
+    if (z < 0) return null;
+    const key = latin1.decode(d.subarray(0, z));
+    if (type === "tEXt") return { key, text: latin1.decode(d.subarray(z + 1)) };
+    if (type === "zTXt") { const t = await inflate(d.subarray(z + 2)); return t ? { key, text: latin1.decode(t) } : null; }
+    const flag = d[z + 1];
+    let i = z + 3;
+    i = d.indexOf(0, i) + 1; i = d.indexOf(0, i) + 1;
+    const body = d.subarray(i);
+    const raw = flag ? await inflate(body) : body;
+    return raw ? { key, text: td.decode(raw), compressed: !!flag } : null;
+  }
+  // Where an embedded text block starts inside an APP1 segment, or -1. Some programs write a slightly different header.
+  function xmpStart(b, ps, e) {
+    if (startsWith(b, ps, "Exif\0") || startsWith(b, ps, "http://ns.adobe.com/xmp/extension/")) return -1;
+    const head = latin1.decode(b.subarray(ps, Math.min(e, ps + 96)));
+    const k = Math.min(...["<?xpacket", "<x:xmpmeta", "<rdf:RDF"].map((t) => { const j = head.indexOf(t); return j < 0 ? Infinity : j; }));
+    return k === Infinity ? -1 : ps + k;
+  }
+  function prettify(n) { return n.replace(/^GPS/, "Location ").replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase()); }
+
+  /* ---------- Clean copy ---------- */
+  // mode "you": removes place, device, names and serials. mode "all": removes every note.
+  async function clean(file, mode) {
+    const f = kind(file);
+    if (f === "jpeg") {
+      const out = [];
+      for (const s of walkJpeg(file)) {
+        let bytes = file.slice(s.s, s.e);
+        if (s.t === "trail") continue;
+        if (s.t === "seg") {
+          const m = s.m, ps = s.ps - s.s;
+          const isExif = m === 0xe1 && startsWith(bytes, ps, "Exif\0");
+          const xs = m === 0xe1 ? xmpStart(bytes, ps, bytes.length) : -1;
+          const isXmpExt = m === 0xe1 && startsWith(bytes, ps, "http://ns.adobe.com/xmp/extension/");
+          const isMpf = m === 0xe2 && startsWith(bytes, ps, "MPF\0");
+          const keep = m === 0xe0 || m === 0xee || (m === 0xe2 && !isMpf) || m < 0xe0 || m === 0xff;
+          if (mode === "all" && !keep) continue;
+          if (mode === "you") {
+            if (m === 0xed || isMpf || isXmpExt) continue;
+            if (isExif) scrubExif(bytes, ps + 6);
+            if (xs >= 0) {
+              const head = bytes.subarray(0, xs);
+              const body = new TextEncoder().encode(scrubXmp(td.decode(bytes.subarray(xs))));
+              const n = xs - 2 + body.length;
+              if (n < 65536) { bytes = concat([head.slice(0, 2), new Uint8Array([n >> 8, n & 255]), head.subarray(4), body]); }
+            }
+          }
+        }
+        out.push(bytes);
+      }
+      return concat(out);
+    }
+    if (f === "png") {
+      const { chunks } = walkPng(file);
+      const out = [file.slice(0, 8)];
+      const drop = /^(tEXt|zTXt|iTXt|eXIf|caBX|tIME)$/;
+      const chunk = (type, data) => {
+        const head = new Uint8Array(8);
+        new DataView(head.buffer).setUint32(0, data.length);
+        for (let k = 0; k < 4; k++) head[4 + k] = type.charCodeAt(k);
+        const crc = new Uint8Array(4);
+        new DataView(crc.buffer).setUint32(0, crc32(concat([head.subarray(4), data])));
+        return concat([head, data, crc]);
+      };
+      for (const c of chunks) {
+        if (mode === "all" && drop.test(c.type)) continue;
+        if (mode === "you") {
+          if (c.type === "eXIf") { const d = file.slice(c.ds, c.de); scrubExif(d, 0); out.push(chunk("eXIf", d)); continue; }
+          if (c.type === "tEXt" || c.type === "zTXt" || c.type === "iTXt") {
+            const t = await pngText(c.type, file.subarray(c.ds, c.de));
+            if (!t) continue;
+            if (/author|owner|artist|creator|copyright|gps|location|serial|^Raw profile type/i.test(t.key)) continue;
+            if (t.key === "XML:com.adobe.xmp") {
+              const enc = new TextEncoder();
+              out.push(chunk("iTXt", concat([enc.encode(t.key), new Uint8Array([0, 0, 0, 0, 0]), enc.encode(scrubXmp(t.text))])));
+              continue;
+            }
+          }
+        }
+        out.push(file.slice(c.s, c.e));
+      }
+      return concat(out);
+    }
+    return null;
+  }
+
+  return { analyze, clean, kind, walkJpeg, walkPng };
+})();
+
+/* =====================================================================
+   Page
+   ===================================================================== */
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const root = document.documentElement;
+  const icons = {
+    moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5a8.5 8.5 0 1 0 10.7 10.7z"/></svg>',
+    sun: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>'
+  };
+  const themeBtn = $("#theme");
+  const drawTheme = () => {
+    const dark = root.dataset.theme === "dark";
+    themeBtn.innerHTML = dark ? icons.sun : icons.moon;
+    themeBtn.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+  };
+  themeBtn.addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem("theme", root.dataset.theme); } catch (e) {}
+    drawTheme();
+  });
+  drawTheme();
+
+  let current = null, previewUrl = null;
+  const tag = (status) => status === "ok" ? '<span class="tag ok">checked</span>' : status === "bad" ? '<span class="tag bad">does not match</span>' : '<span class="tag">not checked</span>';
+  const row = (k, v, t = "", small = "") => `<li><span class="k">${esc(k)}</span><span class="v">${esc(v)}${small ? `<small>${esc(small)}</small>` : ""}</span>${t}</li>`;
+  const list = (items, empty) => `<ul class="rows">${items.length ? items.join("") : `<li><span class="v empty">${esc(empty)}</span></li>`}</ul>`;
+  const coords = (p) => `${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}${p.alt != null ? `, ${Math.round(p.alt)} m high` : ""}`;
+
+  function verdict(r) {
+    const out = [];
+    const rec = r.record;
+    if (rec && !rec.error) {
+      const src = rec.sources.length ? rec.sources[rec.sources.length - 1] : null;
+      const says = src ? ` It says: ${src.text.charAt(0).toLowerCase() + src.text.slice(1)}.` : " It doesn't say how the picture was made.";
+      if (rec.valid) out.push(`<p>This file carries a signed record, and the file seems to still match it.${esc(says)}</p><p class="small">The signer was not compared with a list of trusted signers.</p>`);
+      else if (rec.broken) out.push(`<p>This file carries a signed record, but the file no longer seems to match it. Something likely changed after signing.${esc(says)}</p><p class="small">A mismatch can come from an edit, a re-save or a removed note. kunye can't tell which.</p>`);
+      else out.push(`<p>This file carries a signed record, but some of its checks could not be finished.${esc(says)}</p>`);
+    } else if (rec && rec.error) {
+      out.push(`<p>This file seems to carry a signed record, but it could not be read. ${esc(rec.error)}</p>`);
+    } else {
+      out.push(`<p>No signed record was found in this file. On its own, that says little about whether it is a photograph or a generated image.</p>`);
+    }
+    if (r.labels.length) {
+      const l = r.labels[0].source;
+      out.push(`<p class="small">A plain note says: ${esc(l.text.toLowerCase())}. It is not signed, so any program or person may have written it.</p>`);
+    }
+    const you = [];
+    if (r.place) you.push("the place it was taken");
+    if (r.personal.some((p) => /serial/i.test(p.name))) you.push("serial numbers");
+    if (r.personal.some((p) => /owner|author|artist|creator/i.test(p.name))) you.push("a name");
+    if (r.personal.some((p) => /maker|model|lens/i.test(p.name))) you.push("the device");
+    if (you.length) out.push(`<p class="small">It also seems to carry notes about whoever took it: ${esc(you.join(", "))}.</p>`);
+    return out.join("");
+  }
+
+  function render(r, name, file) {
+    if (r.error) { $("#out").innerHTML = `<div class="result"><p class="error">${esc(r.error)}</p></div>`; return; }
+    const rec = r.record && !r.record.error ? r.record : null;
+    const origin = [];
+    if (rec) {
+      const s = rec.signer;
+      if (s) origin.push(row("Signed by", [s.subject.o, s.subject.cn].filter(Boolean).join(", ") || "unnamed", '<span class="tag">not checked</span>', s.selfIssued ? "The certificate vouches for itself." : s.issuer.o || s.issuer.cn ? `Certificate issued by ${[s.issuer.o, s.issuer.cn].filter(Boolean).join(", ")}` : ""));
+      for (const a of rec.actions) origin.push(row("Step", a.action, a.source ? `<span class="tag ${a.source.kind.startsWith("model") ? "info" : ""}">${a.source.kind.startsWith("model") ? "model" : "declared"}</span>` : "", a.source ? a.source.text : ""));
+      if (rec.generator) origin.push(row("Record made with", rec.generator));
+      if (rec.earlier) origin.push(row("Earlier records", `${rec.earlier} inside this one`, "", "Likely records from files this one was made from."));
+      for (const c of rec.checks) origin.push(row(c.name, c.why, tag(c.status)));
+    } else if (r.record && r.record.error) {
+      origin.push(row("Signed record", r.record.error, '<span class="tag bad">unreadable</span>'));
+    }
+    for (const l of r.labels) origin.push(row("Plain label", l.source.text, '<span class="tag">not signed</span>', "From a text note inside the file."));
+    for (const p of r.plain) origin.push(row(p.name, p.value, "", `From ${p.from}`));
+
+    const you = [];
+    if (r.place) you.push(row("Place", coords(r.place), '<span class="tag you">about you</span>', "Coordinates from the device notes. These can be precise to a few meters."));
+    for (const p of r.personal) you.push(row(p.name, p.value, '<span class="tag you">about you</span>', `From ${p.from}`));
+
+    const cant = [];
+    if (rec && rec.signer) cant.push(row("Who signed it", "The signer's name comes from a certificate inside the file. Judging whether that name is real, or someone to trust, would need a list of trusted signers from outside the file."));
+    if (r.plain.length || r.personal.length || r.place) cant.push(row("Plain notes", "They are not signed, so they may have been edited. They are best read as hints."));
+    for (const u of r.unknown) cant.push(row("Not understood", u));
+    for (const x of r.extra) cant.push(row("Also in the file", x));
+    if (!rec) cant.push(row("How it was made", "Without a signed record, the file itself doesn't say. kunye doesn't look at the pixels."));
+
+    const hasNotes = r.place || r.personal.length || r.plain.length || r.labels.length || rec || r.record || r.extra.length;
+    $("#out").innerHTML = `
+      <div class="result">
+        <div class="file-head">
+          <img id="pv" alt="">
+          <div>
+            <p class="file-name">${esc(name)} · ${r.format.toUpperCase()} · ${(r.size / 1024).toFixed(0)} KB</p>
+            <div class="verdict">${verdict(r)}</div>
+          </div>
+        </div>
+        <section class="group"><h2>Where it came from</h2><p class="sub">What the file declares about its origin. Signed parts are checked; plain notes are shown as they are.</p>
+          ${list(origin, "Nothing in this file describes where it came from.")}</section>
+        <section class="group"><h2>What it says about you</h2><p class="sub">Notes that can point to a place, a device or a person.</p>
+          ${list(you, "No notes about place, device or names were found.")}</section>
+        <section class="group"><h2>What it couldn't check</h2>
+          ${list(cant, "Nothing left unchecked.")}</section>
+        ${hasNotes ? `<section class="clean">
+          <h2>Save a clean copy</h2>
+          <p>The picture itself is copied byte for byte. Only the notes you choose are left out.</p>
+          <div class="choice" role="radiogroup">
+            <label><input type="radio" name="mode" value="you" checked><span>Remove notes about you</span><small>Place, device, serial numbers, names and the small preview inside the device notes. Dates, software and the signed record stay.</small></label>
+            <label><input type="radio" name="mode" value="all"><span>Remove every note</span><small>Also removes the signed record, comments and extra pictures. Color information stays.</small></label>
+          </div>
+          ${r.record ? `<p class="warn" id="recwarn">This file has a signed record. Removing notes about you changes bytes the record covers, so the record will stay but will likely stop matching the file.</p>` : ""}
+          <p style="margin-top:16px"><button class="btn" type="button" id="save">Save a clean copy</button></p>
+          <p class="done" id="done"></p>
+        </section>` : ""}
+      </div>`;
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = URL.createObjectURL(new Blob([file], { type: r.format === "png" ? "image/png" : "image/jpeg" }));
+    $("#pv").src = previewUrl;
+    const save = $("#save");
+    if (save) save.addEventListener("click", async () => {
+      const mode = document.querySelector('input[name="mode"]:checked').value;
+      const out = await K.clean(file, mode);
+      const after = await K.analyze(out);
+      const left = [];
+      if (after.place) left.push("place");
+      if (after.personal.length) left.push(`${after.personal.length} personal notes`);
+      if (mode === "all" && after.record) left.push("signed record");
+      const base = name.replace(/\.(jpe?g|png)$/i, "");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([out], { type: r.format === "png" ? "image/png" : "image/jpeg" }));
+      a.download = `${base}-clean.${r.format === "png" ? "png" : "jpg"}`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      $("#done").textContent = `Saved ${a.download}, ${(out.length / 1024).toFixed(0)} KB. ` + (left.length ? `Read again, it still shows: ${left.join(", ")}.` : "Read again, none of the removed notes showed up.");
+    });
+  }
+
+  async function open(fileObj) {
+    if (!fileObj) return;
+    $("#out").innerHTML = `<div class="result"><p class="privacy-note">Reading ${esc(fileObj.name)}...</p></div>`;
+    try {
+      const buf = new Uint8Array(await fileObj.arrayBuffer());
+      current = buf;
+      const r = await K.analyze(buf);
+      render(r, fileObj.name, buf);
+    } catch (e) {
+      $("#out").innerHTML = `<div class="result"><p class="error">This file could not be read. It may be damaged or in a form kunye doesn't know.</p></div>`;
+    }
+  }
+  $("#file").addEventListener("change", (e) => open(e.target.files[0]));
+  const drop = $("#drop");
+  ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (e) => open(e.dataTransfer.files[0]));
+  window.kunye = K;
+})();
+</script>
+</body>
+</html>

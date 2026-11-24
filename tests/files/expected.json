@@ -1,0 +1,110 @@
+{
+  "signed-camera.jpg": {
+    "record": true,
+    "valid": true,
+    "source": "camera",
+    "place": true,
+    "device": true
+  },
+  "signed-model-made.jpg": {
+    "record": true,
+    "valid": true,
+    "source": "model",
+    "place": false,
+    "device": false
+  },
+  "signed-model-edited.jpg": {
+    "record": true,
+    "valid": true,
+    "source": "model-edited",
+    "place": false,
+    "device": true
+  },
+  "changed-picture-after-signing.jpg": {
+    "record": true,
+    "valid": false,
+    "source": "model",
+    "place": false,
+    "device": false
+  },
+  "changed-note-after-signing.jpg": {
+    "record": true,
+    "valid": false,
+    "source": "camera",
+    "place": true,
+    "device": true
+  },
+  "notes-place-device.jpg": {
+    "record": false,
+    "place": true,
+    "device": true
+  },
+  "unsigned-model-label.jpg": {
+    "record": false,
+    "place": false,
+    "device": false,
+    "unsigned_label": "model"
+  },
+  "notes-with-preview.jpg": {
+    "record": false,
+    "place": true,
+    "device": true,
+    "preview": true
+  },
+  "no-notes.jpg": {
+    "record": false,
+    "place": false,
+    "device": false
+  },
+  "signed-camera.png": {
+    "record": true,
+    "valid": true,
+    "source": "camera",
+    "place": true,
+    "device": true
+  },
+  "signed-model-made.png": {
+    "record": true,
+    "valid": true,
+    "source": "model",
+    "place": false,
+    "device": false
+  },
+  "signed-model-edited.png": {
+    "record": true,
+    "valid": true,
+    "source": "model-edited",
+    "place": false,
+    "device": true
+  },
+  "changed-picture-after-signing.png": {
+    "record": true,
+    "valid": false,
+    "source": "model",
+    "place": false,
+    "device": false
+  },
+  "changed-note-after-signing.png": {
+    "record": true,
+    "valid": false,
+    "source": "camera",
+    "place": true,
+    "device": true
+  },
+  "notes-place-device.png": {
+    "record": false,
+    "place": true,
+    "device": true
+  },
+  "unsigned-model-label.png": {
+    "record": false,
+    "place": false,
+    "device": false,
+    "unsigned_label": "model"
+  },
+  "no-notes.png": {
+    "record": false,
+    "place": false,
+    "device": false
+  }
+}

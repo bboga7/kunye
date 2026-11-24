@@ -1,0 +1,6 @@
+# Packages for the tests only. The page itself needs none of them.
+Pillow>=10
+piexif>=1.1
+playwright>=1.40
+# Optional: a separately written reader, used as a second check of the signed test files.
+c2pa-python==0.39.0

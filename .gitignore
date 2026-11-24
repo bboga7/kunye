@@ -1,0 +1,8 @@
+tests/certs/*.key
+tests/certs/*.pem
+tests/certs/*.crt
+tests/certs/*.csr
+tests/certs/*.srl
+tests/out/
+tests/results.json
+__pycache__/

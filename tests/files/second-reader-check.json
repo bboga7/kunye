@@ -1,0 +1,19 @@
+{
+  "signed-camera.jpg": "Valid",
+  "signed-model-made.jpg": "Valid",
+  "signed-model-edited.jpg": "Valid",
+  "changed-picture-after-signing.jpg": "Invalid",
+  "changed-note-after-signing.jpg": "Invalid",
+  "notes-place-device.jpg": "no record",
+  "unsigned-model-label.jpg": "no record",
+  "notes-with-preview.jpg": "no record",
+  "no-notes.jpg": "no record",
+  "signed-camera.png": "Valid",
+  "signed-model-made.png": "Valid",
+  "signed-model-edited.png": "Valid",
+  "changed-picture-after-signing.png": "Invalid",
+  "changed-note-after-signing.png": "Invalid",
+  "notes-place-device.png": "no record",
+  "unsigned-model-label.png": "no record",
+  "no-notes.png": "no record"
+}
