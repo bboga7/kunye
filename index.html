@@ -6,10 +6,10 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; font-src 'none'; connect-src 'none'; object-src 'none'; media-src 'none'; worker-src 'none'; frame-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>kunye: what a photo says about itself</title>
-<meta name="description" content="Reads the notes inside a photo: where it came from, whether a signed record says a model made it, and what it reveals about you. Saves a copy without the notes you choose. Runs in your browser.">
+<meta name="description" content="Reads the notes inside a photo: where it may have come from, whether a signed record says a model made it, and what it may reveal about you. Saves a copy without the notes you choose. Runs in your browser.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="kunye: what a photo says about itself">
-<meta property="og:description" content="Read the notes inside a photo, see what they can and can't prove, and save a copy without them. Runs in your browser.">
+<meta property="og:description" content="Read the notes inside a photo, see what they may tell you, and save a copy without them. Runs in your browser.">
 <meta property="og:image" content="https://beratboga.me/social-kunye.jpg">
 <!--
   kunye: reads the notes inside a JPEG or PNG file and can save a copy without them.
@@ -636,9 +636,9 @@ const K = (() => {
       pieces.push(file.subarray(pos));
       const h = await digest(rec.hardBinding.alg || claimAlg, concat(pieces));
       const ok = eq(h, rec.hardBinding.hash);
-      rec.checks.push({ name: "The file matches the record", status: ok ? "ok" : "bad", why: ok ? "The bytes outside the record seem unchanged since signing." : "Some bytes of the file seem to have changed after signing, in the picture or in its notes." });
+      rec.checks.push({ name: "File and record", status: ok ? "ok" : "bad", why: ok ? "The bytes outside the record seem unchanged since signing." : "Some bytes of the file seem to have changed after signing, in the picture or in its notes." });
     } else {
-      rec.checks.push({ name: "The file matches the record", status: "unknown", why: rec.otherBinding ? "The record ties itself to the file in a way this page doesn't check yet." : "The record doesn't say how to compare it with the file." });
+      rec.checks.push({ name: "File and record", status: "unknown", why: rec.otherBinding ? "The record ties itself to the file in a way this page doesn't check yet." : "The record doesn't say how to compare it with the file." });
     }
 
     // Signature
@@ -869,7 +869,7 @@ const K = (() => {
     } else if (rec && rec.error) {
       out.push(`<p>This file seems to carry a signed record, but it could not be read. ${esc(rec.error)}</p>`);
     } else {
-      out.push(`<p>No signed record was found in this file. On its own, that says little about whether it is a photograph or a generated image.</p>`);
+      out.push(`<p>No signed record was found in this file. On its own, that may say little about whether it is a photograph or a generated image.</p>`);
     }
     if (r.labels.length) {
       const l = r.labels[0].source;
@@ -910,7 +910,7 @@ const K = (() => {
     if (r.plain.length || r.personal.length || r.place) cant.push(row("Plain notes", "They are not signed, so they may have been edited. They are best read as hints."));
     for (const u of r.unknown) cant.push(row("Not understood", u));
     for (const x of r.extra) cant.push(row("Also in the file", x));
-    if (!rec) cant.push(row("How it was made", "Without a signed record, the file itself doesn't say. kunye doesn't look at the pixels."));
+    if (!rec) cant.push(row("How it was made", "Without a signed record, the file itself may not say. kunye doesn't look at the pixels."));
 
     const hasNotes = r.place || r.personal.length || r.plain.length || r.labels.length || rec || r.record || r.extra.length;
     $("#out").innerHTML = `
@@ -923,11 +923,11 @@ const K = (() => {
           </div>
         </div>
         <section class="group"><h2>Where it came from</h2><p class="sub">What the file declares about its origin. Signed parts are checked; plain notes are shown as they are.</p>
-          ${list(origin, "Nothing in this file describes where it came from.")}</section>
+          ${list(origin, "Nothing found in this file seems to describe where it came from.")}</section>
         <section class="group"><h2>What it says about you</h2><p class="sub">Notes that can point to a place, a device or a person.</p>
           ${list(you, "No notes about place, device or names were found.")}</section>
         <section class="group"><h2>What it couldn't check</h2>
-          ${list(cant, "Nothing left unchecked.")}</section>
+          ${list(cant, "Nothing else to flag.")}</section>
         ${hasNotes ? `<section class="clean">
           <h2>Save a clean copy</h2>
           <p>The picture itself is copied byte for byte. Only the notes you choose are left out.</p>
