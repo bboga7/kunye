@@ -12,8 +12,8 @@ kunye reads the notes inside a JPEG or PNG file: where it may have come from, wh
 Drop a photo on the page and it shows three lists:
 
 1. **Where it came from.** The signed record if there is one, what it declares, and three checks: whether the parts of the record match, whether the file still matches the record, and whether the signature fits the certificate inside it.
-2. **What it says about you.** Place, device, serial numbers, names some cameras write, and a small preview picture that some files keep inside their notes.
-3. **What it couldn't check.** What it read but could not confirm.
+2. **What it says about you.** Place, device, serial numbers and names some cameras write.
+3. **What it couldn't check.** What it read but could not confirm, and other things found in the file, such as a small preview picture that some files keep inside their notes.
 
 It can then save a clean copy in one of two ways:
 
@@ -25,7 +25,7 @@ In both cases the picture data is copied unchanged, so it is not compressed a se
 ## How to read the result
 
 - A missing note may say very little, because notes can be lost when a file is saved again or shared.
-- A plain note is a hint, because it is easy to edit.
+- A plain note is a hint, because it can be edited with little effort.
 - When the checks of a signed record pass, the file has likely not changed since signing. Whether the declaration is true, or whether the signer deserves trust, is hard to judge from the file alone. kunye doesn't compare signers with a list of trusted ones.
 - Removing notes about you from a signed file changes bytes the record covers, so the record will likely stop matching. kunye warns about this before saving.
 
